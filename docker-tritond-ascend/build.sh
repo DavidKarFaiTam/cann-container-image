@@ -5,5 +5,5 @@
 set -x
 
 docker build \
-    -t triton-dist-ascend:20260909 \
+    -t triton-dist-ascend:20261020 \
     -f Dockerfile .

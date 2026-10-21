@@ -1,4 +1,4 @@
-FROM quay.io/ascend/cann:9.1.0-950-ubuntu22.04-py3.12-devel
+FROM quay.io/ascend/cann:9.2.0-950-ubuntu22.04-py3.12-devel
 
 ARG BASEDIR=/usr/local
 WORKDIR ${BASEDIR}
@@ -38,10 +38,6 @@ RUN git clone --no-checkout https://github.com/llvm/llvm-project.git \
     && cp bin/FileCheck ${LLVM_INSTALL_PREFIX}/bin/FileCheck \
     && cp bin/llvm-lit ${LLVM_INSTALL_PREFIX}/bin/llvm-lit
 
-# Probably not needed.
-# ENV CC=/usr/bin/clang-15 
-# ENV CXX=/usr/bin/clang++-15
-# ENV ASM=/usr/bin/clang-15
 
 # Update the version of CMake.
 RUN apt update \
@@ -59,8 +55,8 @@ RUN apt update \
 # Build and install AscendNPU-IR.
 RUN git clone https://gitcode.com/Ascend/AscendNPU-IR.git \
     && cd AscendNPU-IR \
-    # Temporary fix to compilation problem: Check out a specific commit that is known to have compiled. \
-    && git checkout 95a86b3f3592cf4555570d40c67ee96d587e55ff \
+    # Check out a specific commit that is known to have compiled. \
+    && git checkout af366381db32f9c4c73521a2fe54647bf77e0614 \
     && git submodule update --init --recursive \
     && mkdir build \
     && ./build-tools/build.sh -o ./build -t \
@@ -100,13 +96,19 @@ RUN cd Triton-distributed-ascend \
     && sed -i '\|/3rdparty/triton-ascend/third_party/ascend/include)|a\  include_directories(${PROJECT_SOURCE_DIR}/3rdparty/triton-ascend/third_party/nvidia/include)\n  include_directories(${PROJECT_SOURCE_DIR}/3rdparty/triton-ascend/third_party/amd/include)' CMakeLists.txt
 
 # Make this installation an "editable install".
-RUN cd Triton-distributed-ascend \
-    && PATH="/usr/lib/llvm-15/bin:$PATH" \
-        LLVM_SYSPATH=${LLVM_INSTALL_PREFIX} \
-        TRITON_BUILD_WITH_CLANG_LLD=ON \
-        TRITON_BUILD_PROTON=OFF\
-        TRITON_BUILD_LITTLE_KERNEL=OFF \
-        pip install -e ./python --verbose --no-build-isolation
+# 2026-10-20: Disable the build Triton-distributed-ascend.
+# We'll just have a container that the user must supply his/her own
+# Triton-distributed-ascend source code to build.
+# RUN cd Triton-distributed-ascend \
+#     && PATH="/usr/lib/llvm-15/bin:$PATH" \
+#         LLVM_SYSPATH=${LLVM_INSTALL_PREFIX} \
+#         TRITON_BUILD_WITH_CLANG_LLD=ON \
+#         TRITON_BUILD_PROTON=OFF\
+#         TRITON_BUILD_LITTLE_KERNEL=OFF \
+#         pip install -e ./python --verbose --no-build-isolation
+
+# Install a few convenient tools.
+RUN apt install -y less bc ssh psmisc
 
 # Add the path to the AscendNPU-IR compiler to our PATH environment variable.
-ENV PATH=${BASEDIR}/AscendNPU-IR/build/bin:$PATH
+ENV PATH=${BASEDIR}/AscendNPU-IR/build/bin:/usr/local/llvm-install/bin:/usr/lib/llvm-15/bin:$PATH
